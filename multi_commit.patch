@@ -1,0 +1,135 @@
+From 3022e1f02670f8336f457078532f98c50f77496e Mon Sep 17 00:00:00 2001
+From: Joe Ferrer <joe@theforage.com>
+Date: Wed, 1 Mar 2023 00:45:20 +1100
+Subject: [PATCH 1/2] Move python files to datafeed dir
+
+---
+ requirements.txt => datafeed/requirements.txt | 0
+ server.py => datafeed/server3.py              | 0
+ datafeed/test.csv                             | 0
+ 3 files changed, 0 insertions(+), 0 deletions(-)
+ rename requirements.txt => datafeed/requirements.txt (100%)
+ rename server.py => datafeed/server3.py (100%)
+ create mode 100644 datafeed/test.csv
+
+diff --git a/requirements.txt b/datafeed/requirements.txt
+similarity index 100%
+rename from requirements.txt
+rename to datafeed/requirements.txt
+diff --git a/server.py b/datafeed/server3.py
+similarity index 100%
+rename from server.py
+rename to datafeed/server3.py
+diff --git a/datafeed/test.csv b/datafeed/test.csv
+new file mode 100644
+index 0000000..e69de29
+-- 
+2.44.0
+
+
+From cb68a48bc18e88cd4234af90ea679d65c79b3283 Mon Sep 17 00:00:00 2001
+From: Dez Smith <142536345+dez84@users.noreply.github.com>
+Date: Thu, 4 Apr 2024 17:45:21 +0000
+Subject: [PATCH 2/2] fixed broken tsx files
+
+---
+ src/App.tsx   | 21 ++++++++++++++++-----
+ src/Graph.tsx | 13 +++++++++++--
+ 2 files changed, 27 insertions(+), 7 deletions(-)
+
+diff --git a/src/App.tsx b/src/App.tsx
+index 0728518..8e89254 100755
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -8,6 +8,7 @@ import './App.css';
+  */
+ interface IState {
+   data: ServerRespond[],
++  showGraph: boolean,
+ }
+ 
+ /**
+@@ -22,6 +23,7 @@ class App extends Component<{}, IState> {
+       // data saves the server responds.
+       // We use this state to parse data down to the child element (Graph) as element property
+       data: [],
++      showGraph: false,
+     };
+   }
+ 
+@@ -29,20 +31,29 @@ class App extends Component<{}, IState> {
+    * Render Graph react component with state.data parse as property data
+    */
+   renderGraph() {
++    if (this.state.showGraph) {
+     return (<Graph data={this.state.data}/>)
++    }
+   }
+ 
+   /**
+    * Get new data from server and update the state with the new data
+    */
+   getDataFromServer() {
++    let x = 0;
++    const interval = setInterval (() => {
+     DataStreamer.getData((serverResponds: ServerRespond[]) => {
+-      // Update the state by creating a new array of data that consists of
+-      // Previous data in the state and the new data from server
+-      this.setState({ data: [...this.state.data, ...serverResponds] });
++      this.setState({
++        data: serverResponds,
++        showGraph: true,
++      });  
+     });
+-  }
+-
++    x++;
++    if (x > 1000) {
++      clearInterval(interval);
++    }
++  }, 100);
++}  
+   /**
+    * Render the App react component
+    */
+diff --git a/src/Graph.tsx b/src/Graph.tsx
+index 3b2a7da..20ab2ec 100644
+--- a/src/Graph.tsx
++++ b/src/Graph.tsx
+@@ -14,7 +14,7 @@ interface IProps {
+  * Perspective library adds load to HTMLElement prototype.
+  * This interface acts as a wrapper for Typescript compiler.
+  */
+-interface PerspectiveViewerElement {
++interface PerspectiveViewerElement extends HTMLElement {
+   load: (table: Table) => void,
+ }
+ 
+@@ -32,7 +32,7 @@ class Graph extends Component<IProps, {}> {
+ 
+   componentDidMount() {
+     // Get element to attach the table from the DOM.
+-    const elem: PerspectiveViewerElement = document.getElementsByTagName('perspective-viewer')[0] as unknown as PerspectiveViewerElement;
++    const elem = document.getElementsByTagName('perspective-viewer')[0] as unknown as PerspectiveViewerElement;
+ 
+     const schema = {
+       stock: 'string',
+@@ -49,6 +49,15 @@ class Graph extends Component<IProps, {}> {
+ 
+       // Add more Perspective configurations here.
+       elem.load(this.table);
++      elem.setAttribute('view', 'y_line');
++      elem.setAttribute('column-pivots', '["stock"]');
++      elem.setAttribute('row-pivots', '["timestamp"]');
++      elem.setAttribute('columns', '["top_ask_price"]');
++      elem.setAttribute('aggregates',
++        `{"stock": "distinct count",
++        "top_ask_price":"avg",
++        "top_bid_price":"avg",
++        "timestamp":"distinct count"}`);
+     }
+   }
+ 
+-- 
+2.44.0
+
